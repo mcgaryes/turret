@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+
+    <head>
+
+        <% css.forEach(function(style){ %>
+            <link rel="stylesheet" type="text/css" href="<%= style %>">
+        <% }) %>
+
+        <% with (scripts) { %>
+            <% [].concat(jasmine, vendor).forEach(function(script){ %>
+                <script src="<%= script %>"></script>
+            <% }) %>
+        <% }; %>
+
+        <script data-main="<%= options.configFile %>" src="app/libs/requirejs.js"></script>
+
+    </head>
+
+    <body>
+
+        <script>
+
+            require.onError = function(error) {
+                var message = error.requireType + ': ';
+                if (error.requireType === 'scripterror' || error.requireType === 'notloaded' && error.requireModules) {
+                    message += 'Illegal path or script error: ' + '[\'' + error.requireModules.join("', '") + '\']';
+                } else {
+                    message += error.message;
+                }
+
+                throw Error(message);
+            };
+
+            require([<%= '"' + [].concat(scripts.specs,scripts.reporters).join('","') + '"' %>],function(){
+
+                var jasmineEnv = jasmine.getEnv();
+                jasmineEnv.updateInterval = 250;
+
+                var htmlReporter = new jasmine.HtmlReporter();
+                jasmineEnv.addReporter(htmlReporter);
+
+                jasmineEnv.specFilter = function(spec) {
+                    return htmlReporter.specFilter(spec);
+                };
+
+                jasmineEnv.execute();
+            });
+
+        </script>
+
+    </body>
+
+</html>

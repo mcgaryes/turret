@@ -1,0 +1,14 @@
+{
+  "name": "turret",
+  "description": "JavaScript aplication generation using NodeJS.",
+  "homepage": "https://github.com/mcgaryes/turret",
+  "dependencies": {
+    "prompt": "~0.2.11",
+    "async": "~0.2.9",
+    "underscore": "~1.5.2",
+    "ncp": "~0.4.2"
+  },
+  "bin": {
+    "turret": "./server.js"
+  }
+}
