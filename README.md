@@ -1,4 +1,4 @@
-marmalade
+turret
 =========
 
 JavaScript application generator.
