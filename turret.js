@@ -1,12 +1,22 @@
 var fs = require("fs");
-var exec = require('child_process').exec;
+var exec = require("child_process").exec;
 
+var colors = require("colors");
 var prompt = require("prompt");
 var async = require("async");
-var ncp = require('ncp').ncp;
+var ncp = require("ncp").ncp;
 var _ = require("underscore");
+var log = require("custom-logger");
 
-var Turret = module.exports = function Turret(options) {};
+log.config({
+	format: "[%event% %timestamp%]%padding%%message%"
+}, {
+	timestamp: "h:MM:ss"
+});
+
+var Turret = function Turret(options) {
+	this.dirname = options.dirname ? options.dirname : __dirname;
+};
 
 Turret.prototype = Object.create({}, {
 
@@ -15,8 +25,19 @@ Turret.prototype = Object.create({}, {
 	 */
 	start: {
 		value: function start() {
-			console.log("Starting...");
-			async.waterfall([this.load, this.gather, this.create, this.install], this.finish);
+			log.info("Starting...");
+			var delegate = this;
+			async.waterfall([
+
+				function(callback) {
+					delegate.load(callback);
+				},
+				this.gather,
+				function(result, callback) {
+					delegate.create(result, callback);
+				},
+				this.install
+			], this.finish);
 		}
 	},
 
@@ -27,13 +48,14 @@ Turret.prototype = Object.create({}, {
 	 */
 	load: {
 		value: function(callback) {
-			console.log("Loading schema...");
-			var path = process.cwd() + "/schema.json";
+			log.info("Loading schema...");
+			var path = this.dirname + "/schema.json";
 			fs.exists(path, function(exists) {
-				if (!exists) path = __dirname + "/schema.json";
-				fs.readFile(path, function(err, data) {
-					callback(err, JSON.parse(String(data)));
-				});
+				if (exists) {
+					fs.readFile(path, function(err, data) {
+						callback(err, JSON.parse(String(data)));
+					});
+				}
 			});
 		}
 	},
@@ -45,7 +67,7 @@ Turret.prototype = Object.create({}, {
 	 */
 	gather: {
 		value: function gather(schema, callback) {
-			console.log("Gathering preferences...");
+			log.info("Gathering preferences...");
 			_.each(_.keys(schema.properties), function(key) {
 				var obj = schema.properties[key];
 				if (obj.validator) obj.validator = new RegExp(obj.validator);
@@ -64,8 +86,8 @@ Turret.prototype = Object.create({}, {
 	 */
 	create: {
 		value: function create(result, callback) {
-			console.log("Creating files...");
-			ncp(__dirname + "/template", process.cwd(), {
+			log.info("Creating files...");
+			ncp(this.dirname + "/template", process.cwd(), {
 				transform: function(read, write, file) {
 					read.on('readable', function() {
 						if (_.isNull(file.name.match(/.tmpl/i))) {
@@ -86,9 +108,9 @@ Turret.prototype = Object.create({}, {
 	 */
 	install: {
 		value: function finish(callback) {
-			console.log("Installing components...");
-			exec(["npm install", "bower install", "grunt install", "grunt compile"].join("&&"), {
-				cwd: process.cwd(),
+			log.info("Installing components...");
+			exec(["npm install"].join("&&"), {
+				cwd: process.cwd()
 			}, function(err, stdout, stderr) {
 				callback(err);
 			});
@@ -101,11 +123,16 @@ Turret.prototype = Object.create({}, {
 	finish: {
 		value: function finish(err) {
 			if (err) {
-				console.log("Error:", err.message);
+				log.error(err);
 			} else {
-				console.log("Finishing up...");
-				console.log("Complete");
+				log.info("Finishing up...");
+				log.info("Complete!");
 			}
 		}
 	}
 });
+
+module.exports = {
+	Turret: Turret,
+	log: log
+};
