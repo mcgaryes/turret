@@ -2,13 +2,12 @@
   "name": "turret",
   "description": "JavaScript aplication generation using NodeJS.",
   "homepage": "https://github.com/mcgaryes/turret",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "dependencies": {
     "prompt": "~0.2.11",
     "async": "~0.2.9",
     "underscore": "~1.5.2",
     "ncp": "~0.4.2",
-    "colors": "~0.6.2",
     "custom-logger": "~0.2.1"
   },
   "bin": {
