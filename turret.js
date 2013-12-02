@@ -6,9 +6,9 @@ var async = require("async");
 var ncp = require('ncp').ncp;
 var _ = require("underscore");
 
-var Generator = module.exports = function Generator(options) {};
+var Turret = module.exports = function Turret(options) {};
 
-Generator.prototype = Object.create({}, {
+Turret.prototype = Object.create({}, {
 
 	/**
 	 * Creates and runs an async waterfall series
