@@ -1,28 +1,17 @@
 #! /usr/bin/env node
 
 var _ = require("underscore");
-var Turret = require("./turret").Turret;
-//var exec = require("child_process").exec;
-var spawn = require("child_process").spawn;
+var logic = require("./lib/logic");
+var strings = require("./lib/strings");
 
 if (process.argv.length > 2) {
 	var cmd = process.argv[2];
-	if (cmd === "create") {
-		var nTurret = new Turret();
-		nTurret.start();
-	} else if (cmd === "run") {
-		var pgrm = process.argv[3];
-		if (pgrm) {
-			console.log("Running", pgrm);
-			spawn(pgrm, [], {
-				stdio: "inherit"
-			}, function(err) {
-				console.log(err);
-			});
-		} else {
-			console.log("Pass a program");
-		}
+	var args = process.argv.slice(2, process.argv.length);
+	if (_.isFunction(logic[cmd])) {
+		logic[cmd](args);
+	} else {
+		console.log(strings.USAGE);
 	}
 } else {
-	console.log("Error");
+	console.log(strings.USAGE);
 }

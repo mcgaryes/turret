@@ -1,38 +1,52 @@
 var fs = require("fs");
 var exec = require("child_process").exec;
 
-var colors = require("colors");
 var prompt = require("prompt");
 var async = require("async");
 var ncp = require("ncp").ncp;
 var _ = require("underscore");
-var log = require("custom-logger");
+var Backbone = require("backbone");
 
-log.config({
-	format: "[%event% %timestamp%]%padding%%message%"
-}, {
-	timestamp: "h:MM:ss"
-});
+var utils = require("./lib/utils");
+var strings = require("./lib/strings");
 
-var Turret = function Turret(options) {
-	this.dirname = options.dirname ? options.dirname : __dirname;
+/**
+ * Turret generator
+ * @constructor
+ * @class
+ * @param {Object} options to be applied to the Turret instance
+ */
+var Turret = module.exports = function Turret(options) {
+	if (options) {
+		this.dirname = options.dirname ? options.dirname : __dirname;
+	}
+	return this;
 };
 
-Turret.prototype = Object.create({}, {
+Turret.prototype = Object.create(Backbone.Events, {
+
+	/**
+	 * provides functionality for prompt and template creation
+	 */
+	schema: {
+		value: {}
+	},
 
 	/**
 	 * Creates and runs an async waterfall series
 	 */
 	start: {
 		value: function start() {
-			log.info("Starting...");
+			console.log("Starting...");
 			var delegate = this;
 			async.waterfall([
-
+				this.check,
 				function(callback) {
-					delegate.load(callback);
+					delegate.gather(callback);
 				},
-				this.gather,
+				function(result, callback) {
+					delegate.combine(result, callback);
+				},
 				function(result, callback) {
 					delegate.create(result, callback);
 				},
@@ -42,40 +56,54 @@ Turret.prototype = Object.create({}, {
 	},
 
 	/**
-	 * Loads the schema for the console dialog prompts
-	 * @see https://npmjs.org/package/prompt for json schema direction
-	 * @param {Function} callback Callback functionality for when schema is done loading
+	 * Check to make sure that the current working directory is empty
+	 * @param {Function} callback
 	 */
-	load: {
-		value: function(callback) {
-			log.info("Loading schema...");
-			var path = this.dirname + "/schema.json";
-			fs.exists(path, function(exists) {
-				if (exists) {
-					fs.readFile(path, function(err, data) {
-						callback(err, JSON.parse(String(data)));
-					});
-				}
+	check: {
+		value: function check(callback) {
+			console.log("Checking CWD...");
+			var files = _.filter(fs.readdirSync(process.cwd()), function(file) {
+				// @TODO: Give this a proper whitelist of filenames
+				if (file.slice(0, 1) === ".") return false;
+				return true;
 			});
+			if (files.length > 0) {
+				callback(strings.NOT_EMPTY);
+			} else {
+				callback();
+			}
 		}
 	},
 
 	/**
 	 * Performs dialog prompts and send the gathered data along
-	 * @param {Object} schema js object
 	 * @param {Function} callback Callback functionality for when prompt is complete
 	 */
 	gather: {
-		value: function gather(schema, callback) {
-			log.info("Gathering preferences...");
-			_.each(_.keys(schema.properties), function(key) {
-				var obj = schema.properties[key];
-				if (obj.validator) obj.validator = new RegExp(obj.validator);
-			});
-			prompt.start();
-			prompt.get(schema, function(err, result) {
-				callback(err, result);
-			});
+		value: function gather(callback) {
+			console.log("Gathering information...");
+			if (_.isUndefined(this.schema) || _.isUndefined(this.schema.prompt)) {
+				callback(null, {});
+			} else {
+				prompt.start();
+				prompt.get(this.schema.prompt, function(err, result) {
+					callback(err, result);
+				});
+			}
+		}
+	},
+
+	/**
+	 * Combines the content gathered during prompts with the items passed into
+	 * the schema's template object
+	 */
+	combine: {
+		value: function combine(result, callback) {
+			if (!_.isUndefined(this.schema) && !_.isUndefined(this.schema.template)) {
+				callback(null, _.extend(result, this.schema.template));
+			} else {
+				callback(null, result);
+			}
 		}
 	},
 
@@ -86,13 +114,18 @@ Turret.prototype = Object.create({}, {
 	 */
 	create: {
 		value: function create(result, callback) {
-			log.info("Creating files...");
+			console.log("Creating files...");
+
+			_.templateSettings = {
+				evaluate: /<\?([\s\S]+?)\?>/g,
+				interpolate: /<\?=([\s\S]+?)\?>/g,
+				escape: /<\?-([\s\S]+?)\?>/g
+			};
+
 			ncp(this.dirname + "/template", process.cwd(), {
 				transform: function(read, write, file) {
 					read.on('readable', function() {
-						if (_.isNull(file.name.match(/.tmpl/i))) {
-							write.write(_.template(String(read.read()), result));
-						}
+						write.write(_.template(String(read.read()), result));
 						read.pipe(write);
 					});
 				}
@@ -107,8 +140,8 @@ Turret.prototype = Object.create({}, {
 	 * @param {Function} callback Callback when install is complete
 	 */
 	install: {
-		value: function finish(callback) {
-			log.info("Installing components...");
+		value: function install(callback) {
+			console.log("Running install...");
 			exec(["npm install"].join("&&"), {
 				cwd: process.cwd()
 			}, function(err, stdout, stderr) {
@@ -123,16 +156,24 @@ Turret.prototype = Object.create({}, {
 	finish: {
 		value: function finish(err) {
 			if (err) {
-				log.error(err);
+				console.log("\nError: " + err);
 			} else {
-				log.info("Finishing up...");
-				log.info("Complete!");
+				console.log("Finishing up...");
 			}
 		}
 	}
 });
 
-module.exports = {
-	Turret: Turret,
-	log: log
+/**
+ * Simple extension functionality
+ * @param {Object} props Properties to assign to the entention's prototype
+ */
+Turret.extend = function(props) {
+	var parent = this;
+	var child = function() {
+		parent.apply(this, arguments);
+	};
+	var proto = utils.createDescriptors(props);
+	child.prototype = Object.create(parent.prototype, proto);
+	return child;
 };

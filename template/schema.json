@@ -1,8 +1,0 @@
-{
-	"properties": {
-		"option": {
-			"description": "Example Option",
-			"type": "string"
-		}
-	}
-}
