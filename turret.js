@@ -61,7 +61,6 @@ Turret.prototype = Object.create(Backbone.Events, {
 	 */
 	check: {
 		value: function check(callback) {
-			console.log("Checking CWD...");
 			var files = _.filter(fs.readdirSync(process.cwd()), function(file) {
 				// @TODO: Give this a proper whitelist of filenames
 				if (file.slice(0, 1) === ".") return false;
