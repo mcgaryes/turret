@@ -1,1 +1,1 @@
-// this file will be copied to the cwd
+This file will be copied to the CWD of where "turret init" is run.

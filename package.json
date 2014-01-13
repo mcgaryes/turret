@@ -8,7 +8,8 @@
     "async": "~0.2.9",
     "underscore": "~1.5.2",
     "ncp": "~0.4.2",
-    "backbone": "~1.1.0"
+    "backbone": "~1.1.0",
+    "winston": "~0.7.2"
   },
   "devDependencies": {
     "chai": "~1.8.1"

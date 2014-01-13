@@ -1,14 +1,15 @@
 var fs = require("fs");
-var exec = require("child_process").exec;
+var spawn = require("child_process").spawn;
+var EventEmitter = require("events").EventEmitter;
 
-var prompt = require("prompt");
 var async = require("async");
 var ncp = require("ncp").ncp;
 var _ = require("underscore");
-var Backbone = require("backbone");
 
 var utils = require("./lib/utils");
 var strings = require("./lib/strings");
+var Logger = require("./lib/logger").Logger;
+var Prompt = require("./lib/prompt").Prompt;
 
 /**
  * Turret generator
@@ -17,52 +18,46 @@ var strings = require("./lib/strings");
  * @param {Object} options to be applied to the Turret instance
  */
 var Turret = module.exports = function Turret(options) {
-	if (options) {
-		this.dirname = options.dirname ? options.dirname : __dirname;
-	}
+	this.dirname = options && options.dirname ? options.dirname : __dirname;
+	this.logger = console;
+	console.verbose = console.info;
+	// var logger = this.logger = new Logger(options);
 	return this;
 };
 
-Turret.prototype = Object.create(Backbone.Events, {
+Turret.prototype = Object.create(EventEmitter, {
 
 	/**
-	 * provides functionality for prompt and template creation
+	 * Provides functionality for prompt and template creation.
 	 */
 	schema: {
 		value: {}
 	},
 
 	/**
-	 * Creates and runs an async waterfall series
+	 * Creates and runs an async waterfall series.
 	 */
 	start: {
 		value: function start() {
-			console.log("Starting...");
-			var delegate = this;
+			this.logger.info("Starting...");
 			async.waterfall([
-				this.check,
-				function(callback) {
-					delegate.gather(callback);
-				},
-				function(result, callback) {
-					delegate.combine(result, callback);
-				},
-				function(result, callback) {
-					delegate.create(result, callback);
-				},
-				this.install
-			], this.finish);
+				_.bind(this.check, this),
+				_.bind(this.gather, this),
+				_.bind(this.combine, this),
+				_.bind(this.create, this),
+				_.bind(this.install, this)
+			], _.bind(this.finish, this));
 		}
 	},
 
 	/**
-	 * Check to make sure that the current working directory is empty
+	 * Check to make sure that the current working directory is empty.
 	 * @param {Function} callback
 	 */
 	check: {
 		value: function check(callback) {
+			this.logger.verbose("Checking CWD...");
 			var files = _.filter(fs.readdirSync(process.cwd()), function(file) {
-				// @TODO: Give this a proper whitelist of filenames
 				if (file.slice(0, 1) === ".") return false;
 				return true;
 			});
@@ -75,15 +70,16 @@ Turret.prototype = Object.create(Backbone.Events, {
 	},
 
 	/**
-	 * Performs dialog prompts and send the gathered data along
+	 * Performs dialog prompts and send the gathered data along.
 	 * @param {Function} callback Callback functionality for when prompt is complete
 	 */
 	gather: {
 		value: function gather(callback) {
-			console.log("Gathering information...");
+			this.logger.info("Gathering information...");
 			if (_.isUndefined(this.schema) || _.isUndefined(this.schema.prompt)) {
 				callback(null, {});
 			} else {
+				var prompt = new Prompt(this.logger);
 				prompt.start();
 				prompt.get(this.schema.prompt, function(err, result) {
 					callback(err, result);
@@ -94,10 +90,13 @@ Turret.prototype = Object.create(Backbone.Events, {
 
 	/**
 	 * Combines the content gathered during prompts with the items passed into
-	 * the schema's template object
+	 * the schema's template object.
+	 * @param {Object} result
+	 * @param {Function} callback
 	 */
 	combine: {
 		value: function combine(result, callback) {
+			this.logger.verbose("Combining gathered with schema template...");
 			if (!_.isUndefined(this.schema) && !_.isUndefined(this.schema.template)) {
 				callback(null, _.extend(result, this.schema.template));
 			} else {
@@ -113,7 +112,8 @@ Turret.prototype = Object.create(Backbone.Events, {
 	 */
 	create: {
 		value: function create(result, callback) {
-			console.log("Creating files...");
+
+			this.logger.info("Creating files...");
 
 			_.templateSettings = {
 				evaluate: /<\?([\s\S]+?)\?>/g,
@@ -140,34 +140,58 @@ Turret.prototype = Object.create(Backbone.Events, {
 	 */
 	install: {
 		value: function install(callback) {
-			console.log("Running install...");
-			exec(["npm install"].join("&&"), {
-				cwd: process.cwd()
-			}, function(err, stdout, stderr) {
-				callback(err);
+			this.logger.info("Running install...");
+
+			var childProc = spawn("npm", ["install"], {
+				cwd: process.cwd(),
+				stdio: "inherit"
 			});
+
+			childProc.on("close", function(code) {
+				console.log("child process exited with code " + code);
+			});
+
 		}
 	},
 
 	/**
 	 * Final wrap-up once project generation is complete
+	 * @param {Error} err Error object if somethings gone wrong during control flow
 	 */
 	finish: {
 		value: function finish(err) {
 			if (err) {
-				console.log("\nError: " + err);
+				this.logger.error(err);
 			} else {
-				console.log("Finishing up...");
+				this.logger.info("Finishing up...");
 			}
 		}
 	}
 });
 
 /**
+ * Static factory method for creating a Turret instance
+ * @param {Object} schema The schema to pass through to prompt commands for the instance
+ * @param {String} directory The CWD for the turret instance to use for scaffolding
+ */
+Turret.create = function create(schema, dirname) {
+
+	// create an turret extention object
+	var ChildTurret = Turret.extend({
+		schema: schema
+	});
+
+	// return a new instance of the extention turret
+	return new ChildTurret({
+		dirname: dirname
+	});
+};
+
+/**
  * Simple extension functionality
  * @param {Object} props Properties to assign to the entention's prototype
  */
-Turret.extend = function(props) {
+Turret.extend = function extend(props) {
 	var parent = this;
 	var child = function() {
 		parent.apply(this, arguments);

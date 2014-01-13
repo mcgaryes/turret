@@ -12,7 +12,8 @@ describe("turret", function() {
 		});
 
 		var turret = new CustomTurret({
-			dirname: __dirname
+			dirname: __dirname,
+			logsilent:true
 		});
 
 		expect(turret.schema).to.equal(null);
@@ -25,7 +26,9 @@ describe("turret", function() {
 				done();
 			}
 		});
-		var turret = new CustomTurret();
+		var turret = new CustomTurret({
+			logsilent:true
+		});
 		turret.start();
 	});
 
@@ -43,7 +46,8 @@ describe("turret", function() {
 		});
 
 		var turret = new CustomTurret({
-			dirname: __dirname
+			dirname: __dirname,
+			logsilent:true
 		});
 
 		turret.start();
@@ -81,7 +85,8 @@ describe("turret", function() {
 		});
 
 		var turret = new CustomTurret({
-			dirname: __dirname
+			dirname: __dirname,
+			logsilent:true
 		});
 
 		turret.start();
@@ -108,7 +113,9 @@ describe("turret", function() {
 			},
 		});
 
-		var t = new Custom();
+		var t = new Custom({
+			logsilent:true
+		});
 		t.start();
 	});
 
