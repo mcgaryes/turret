@@ -1,7 +1,6 @@
 {
 	"name": "<?= name ?>",
 	"description": "<?= description ?>",
-	"homepage": "<?= homepage ?>",
 	"dependencies": {
 		"turret": "0.x.x"
 	}

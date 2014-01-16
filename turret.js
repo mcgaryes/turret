@@ -8,8 +8,8 @@ var _ = require("underscore");
 
 var utils = require("./lib/utils");
 var strings = require("./lib/strings");
-var Logger = require("./lib/logger").Logger;
 var Prompt = require("./lib/prompt").Prompt;
+var syncPrompt = require("sync-prompt").prompt;
 
 /**
  * Turret generator
@@ -19,9 +19,6 @@ var Prompt = require("./lib/prompt").Prompt;
  */
 var Turret = module.exports = function Turret(options) {
 	this.dirname = options && options.dirname ? options.dirname : __dirname;
-	this.logger = console;
-	console.verbose = console.info;
-	// var logger = this.logger = new Logger(options);
 	return this;
 };
 
@@ -39,7 +36,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	start: {
 		value: function start() {
-			this.logger.info("Starting...");
+			console.info("Starting...");
 			async.waterfall([
 				_.bind(this.check, this),
 				_.bind(this.gather, this),
@@ -56,7 +53,9 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	check: {
 		value: function check(callback) {
-			this.logger.verbose("Checking CWD...");
+			console.info("Checking CWD...");
+			// @TODO: think about adding a true whitelist of files to check against
+			// run through some different folder scenerios
 			var files = _.filter(fs.readdirSync(process.cwd()), function(file) {
 				if (file.slice(0, 1) === ".") return false;
 				return true;
@@ -75,7 +74,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	gather: {
 		value: function gather(callback) {
-			this.logger.info("Gathering information...");
+			console.info("Gathering information...");
 			if (_.isUndefined(this.schema) || _.isUndefined(this.schema.prompt)) {
 				callback(null, {});
 			} else {
@@ -96,7 +95,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	combine: {
 		value: function combine(result, callback) {
-			this.logger.verbose("Combining gathered with schema template...");
+			console.info("Combining gathered with schema template...");
 			if (!_.isUndefined(this.schema) && !_.isUndefined(this.schema.template)) {
 				callback(null, _.extend(result, this.schema.template));
 			} else {
@@ -113,8 +112,9 @@ Turret.prototype = Object.create(EventEmitter, {
 	create: {
 		value: function create(result, callback) {
 
-			this.logger.info("Creating files...");
+			console.info("Creating files...");
 
+			// @TODOL: apply templating char from schema
 			_.templateSettings = {
 				evaluate: /<\?([\s\S]+?)\?>/g,
 				interpolate: /<\?=([\s\S]+?)\?>/g,
@@ -123,6 +123,7 @@ Turret.prototype = Object.create(EventEmitter, {
 
 			ncp(this.dirname + "/template", process.cwd(), {
 				transform: function(read, write, file) {
+					// @TODO: if i answered no and I dont need a file dont move it over
 					read.on('readable', function() {
 						write.write(_.template(String(read.read()), result));
 						read.pipe(write);
@@ -140,7 +141,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	install: {
 		value: function install(callback) {
-			this.logger.info("Running install...");
+			console.info("Running install...");
 
 			var childProc = spawn("npm", ["install"], {
 				cwd: process.cwd(),
@@ -154,6 +155,8 @@ Turret.prototype = Object.create(EventEmitter, {
 		}
 	},
 
+	// @TODO: add cleanup method here
+
 	/**
 	 * Final wrap-up once project generation is complete
 	 * @param {Error} err Error object if somethings gone wrong during control flow
@@ -161,9 +164,9 @@ Turret.prototype = Object.create(EventEmitter, {
 	finish: {
 		value: function finish(err) {
 			if (err) {
-				this.logger.error(err);
+				console.error(err);
 			} else {
-				this.logger.info("Finishing up...");
+				console.info("Finishing up...");
 			}
 		}
 	}
