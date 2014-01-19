@@ -1,8 +1,8 @@
 {
   "name": "turret",
-  "description": "JavaScript aplication generation using NodeJS.",
+  "description": "Template scaffolding library.",
   "homepage": "https://github.com/mcgaryes/turret",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "dependencies": {
     "async": "~0.2.9",
     "underscore": "~1.5.2",

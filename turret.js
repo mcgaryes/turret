@@ -144,18 +144,28 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	install: {
 		value: function install(callback) {
 
-			this.logger.info("Running install...");
+			// @TODO: figure out the best way to overwrite this for templates
+			// that are not npm OR javascript based
 
-			var childProc = spawn("npm", ["install"], {
-				cwd: this.cwd,
-				stdio: "inherit"
-			});
+			if (fs.existsSync(this.cwd + "package.json")) {
 
-			var delegate = this;
-			childProc.on("close", function(code) {
-				delegate.logger.info("child process exited with code " + code);
-			});
+				this.logger.info("Running install...");
 
+				var childProc = spawn("npm", ["install"], {
+					cwd: this.cwd,
+					stdio: "inherit"
+				});
+
+				var delegate = this;
+				childProc.on("close", function(code) {
+					callback();
+				});
+
+			} else {
+
+				callback();
+
+			}
 		}
 	},
 
@@ -167,6 +177,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	finish: {
 		value: function finish(err) {
+			this.logger.info("Finishing up...");
 			if (err) this.logger.error(err);
 			this.emit("complete", err);
 		}
