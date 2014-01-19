@@ -6,10 +6,10 @@ var async = require("async");
 var ncp = require("ncp").ncp;
 var _ = require("underscore");
 
-var utils = require("./lib/utils");
+var prototypeUtils = require("./lib/prototype-utils");
 var strings = require("./lib/strings");
 var Prompt = require("./lib/prompt").Prompt;
-var syncPrompt = require("sync-prompt").prompt;
+// var prompt = require("prompt");
 
 /**
  * Turret generator
@@ -37,7 +37,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	start: {
 		value: function start() {
-			// console.info("Starting...");
+			console.info("Starting...");
 			async.waterfall([
 				_.bind(this.check, this),
 				_.bind(this.gather, this),
@@ -54,7 +54,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	check: {
 		value: function check(callback) {
-			// console.info("Checking CWD...");
+			console.info("Checking CWD...");
 			// @TODO: think about adding a true whitelist of files to check against
 			// run through some different folder scenerios
 			var files = _.filter(fs.readdirSync(this.cwd), function(file) {
@@ -75,13 +75,12 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	gather: {
 		value: function gather(callback) {
-			// console.info("Gathering information...");
-			if (_.isUndefined(this.schema) || _.isUndefined(this.schema.prompt)) {
+			console.info("Gathering information...");
+			if (_.isUndefined(this.schema) || _.isUndefined(this.schema.prompts)) {
 				callback(null, {});
 			} else {
-				var prompt = new Prompt(this.logger);
-				prompt.start();
-				prompt.get(this.schema.prompt, function(err, result) {
+				var methods = Prompt.methodsForPrompts(this.schema.prompts);
+				async.waterfall(methods, function(err, result) {
 					callback(err, result);
 				});
 			}
@@ -143,7 +142,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	install: {
 		value: function install(callback) {
-			
+
 			return;
 			// console.info("Running install...");
 
@@ -167,7 +166,8 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	finish: {
 		value: function finish(err) {
-			this.emit("complete",err);
+			if(err) console.error(err);
+			this.emit("complete", err);
 		}
 	}
 });
@@ -188,7 +188,7 @@ var create = Turret.create = function create(schema, dirname, cwd) {
 	// return a new instance of the extention turret
 	return new ChildTurret({
 		dirname: dirname,
-		cwd:cwd
+		cwd: cwd
 	});
 };
 
@@ -203,7 +203,7 @@ var extend = Turret.extend = function extend(props) {
 	};
 	child.extend = extend;
 	child.create = create;
-	var proto = utils.createDescriptors(props);
+	var proto = prototypeUtils.createDescriptors(props);
 	child.prototype = Object.create(parent.prototype, proto);
 	return child;
 };

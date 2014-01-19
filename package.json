@@ -4,11 +4,11 @@
   "homepage": "https://github.com/mcgaryes/turret",
   "version": "0.1.4",
   "dependencies": {
-    "prompt": "~0.2.11",
     "async": "~0.2.9",
     "underscore": "~1.5.2",
     "ncp": "~0.4.2",
-    "winston": "~0.7.2"
+    "winston": "~0.7.2",
+    "sync-prompt": "~0.2.2"
   },
   "devDependencies": {
     "chai": "~1.8.1"

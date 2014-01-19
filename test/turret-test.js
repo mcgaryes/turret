@@ -36,7 +36,6 @@ describe("turret", function() {
 		});
 
 		expect(turret.schema).to.equal(null);
-
 	});
 
 	it("throws an error if working directory is not empty", function(done) {
@@ -143,6 +142,12 @@ describe("turret", function() {
 			cwd: "foo"
 		});
 		expect(turret.cwd).to.equal("foo");
+	});
+
+	describe("templating",function(){
+		it("prompts",function(){
+			// ...
+		});
 	});
 
 	describe("schema template character", function() {
