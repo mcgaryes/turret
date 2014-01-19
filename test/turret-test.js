@@ -3,6 +3,7 @@
 var expect = require('chai').expect;
 var Turret = require("../turret");
 var fs = require("fs");
+var Logger = require("../lib/logger").Logger;
 
 var rmDirRecursive = function(path) {
 	if (fs.existsSync(path)) {
@@ -139,13 +140,14 @@ describe("turret", function() {
 
 	it("can set cwd", function() {
 		var turret = new Turret({
-			cwd: "foo"
+			cwd: "foo",
+			logsilent: true
 		});
 		expect(turret.cwd).to.equal("foo");
 	});
 
-	describe("templating",function(){
-		it("prompts",function(){
+	describe("templating", function() {
+		it("prompts", function() {
 			// ...
 		});
 	});
@@ -173,28 +175,33 @@ describe("turret", function() {
 		it("is used as defined", function(done) {
 
 			var Custom = Turret.extend({
-				install:function(callback){
+				install: function(callback) {
 					callback();
 				}
 			})
 
 			var custom = Custom.create({
-				delimiter: "abc",
-				template: {
-					foo:"bar"
+				schema:{
+					delimiter: "abc",
+					template: {
+						foo: "bar"
+					}
 				}
 			}, tmpReadPath, tmpWritePath);
 
-			custom.on("complete",function(){
+			custom.logger = new Logger({
+				logsilent:true
+			});
+
+			custom.on("complete", function() {
 				var result = String(fs.readFileSync(tmpWritePath + "/foo"));
 				expect(result).to.equal("bar");
 				done();
 			});
 
 			custom.start();
-			
+
 
 		});
 	});
-
 });

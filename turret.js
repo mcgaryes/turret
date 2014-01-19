@@ -9,7 +9,7 @@ var _ = require("underscore");
 var prototypeUtils = require("./lib/prototype-utils");
 var strings = require("./lib/strings");
 var Prompt = require("./lib/prompt").Prompt;
-// var prompt = require("prompt");
+var Logger = require("./lib/logger").Logger;
 
 /**
  * Turret generator
@@ -20,6 +20,7 @@ var Prompt = require("./lib/prompt").Prompt;
 var Turret = module.exports = function Turret(options) {
 	this.dirname = options && options.dirname ? options.dirname : __dirname;
 	this.cwd = options && options.cwd ? options.cwd : process.cwd();
+	this.logger = new Logger(options);
 	return this;
 };
 
@@ -37,7 +38,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	start: {
 		value: function start() {
-			console.info("Starting...");
+			this.logger.info("Starting...");
 			async.waterfall([
 				_.bind(this.check, this),
 				_.bind(this.gather, this),
@@ -54,7 +55,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	check: {
 		value: function check(callback) {
-			console.info("Checking CWD...");
+			this.logger.info("Checking CWD...");
 			// @TODO: think about adding a true whitelist of files to check against
 			// run through some different folder scenerios
 			var files = _.filter(fs.readdirSync(this.cwd), function(file) {
@@ -75,7 +76,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	gather: {
 		value: function gather(callback) {
-			console.info("Gathering information...");
+			this.logger.info("Gathering information...");
 			if (_.isUndefined(this.schema) || _.isUndefined(this.schema.prompts)) {
 				callback(null, {});
 			} else {
@@ -95,7 +96,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	combine: {
 		value: function combine(result, callback) {
-			// console.info("Combining gathered with schema template...");
+			this.logger.info("Combining gathered with schema template...");
 			if (!_.isUndefined(this.schema) && !_.isUndefined(this.schema.template)) {
 				callback(null, _.extend(result, this.schema.template));
 			} else {
@@ -112,7 +113,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	create: {
 		value: function create(result, callback) {
 
-			// console.info("Creating files...");
+			this.logger.info("Creating files...");
 
 			var delimiter = this.schema.delimiter ? this.schema.delimiter : "?";
 
@@ -143,16 +144,16 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	install: {
 		value: function install(callback) {
 
-			return;
-			// console.info("Running install...");
+			this.logger.info("Running install...");
 
 			var childProc = spawn("npm", ["install"], {
 				cwd: this.cwd,
 				stdio: "inherit"
 			});
 
+			var delegate = this;
 			childProc.on("close", function(code) {
-				console.log("child process exited with code " + code);
+				delegate.logger.info("child process exited with code " + code);
 			});
 
 		}
@@ -166,7 +167,7 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
 	 */
 	finish: {
 		value: function finish(err) {
-			if(err) console.error(err);
+			if (err) this.logger.error(err);
 			this.emit("complete", err);
 		}
 	}
@@ -178,17 +179,15 @@ Turret.prototype = Object.create(EventEmitter.prototype, {
  * @param {String} directory The CWD for the turret instance to use for scaffolding
  * @param {String} The current working directory OPTIONAL
  */
-var create = Turret.create = function create(schema, dirname, cwd) {
+var create = Turret.create = function create(options, dirname, cwd) {
 
 	// create an turret extention object
-	var ChildTurret = this.extend({
-		schema: schema
-	});
+	var ChildTurret = this.extend(options);
 
 	// return a new instance of the extention turret
 	return new ChildTurret({
 		dirname: dirname,
-		cwd: cwd
+		cwd: cwd,
 	});
 };
 
