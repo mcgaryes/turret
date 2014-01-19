@@ -2,6 +2,22 @@
 
 var expect = require('chai').expect;
 var Turret = require("../turret");
+var fs = require("fs");
+
+var rmDirRecursive = function(path) {
+	if (fs.existsSync(path)) {
+		fs.readdirSync(path).forEach(function(file, index) {
+			var curPath = path + "/" + file;
+			if (fs.statSync(curPath).isDirectory()) { // recurse
+				rmDirRecursive(curPath);
+			} else { // delete file
+				fs.unlinkSync(curPath);
+			}
+		});
+		fs.rmdirSync(path);
+	}
+};
+
 
 describe("turret", function() {
 
@@ -11,23 +27,27 @@ describe("turret", function() {
 			schema: null
 		});
 
+		expect(CustomTurret.extend).to.not.be.undefined;
+		expect(CustomTurret.create).to.not.be.undefined;
+
 		var turret = new CustomTurret({
 			dirname: __dirname,
-			logsilent:true
+			logsilent: true
 		});
 
 		expect(turret.schema).to.equal(null);
+
 	});
 
 	it("throws an error if working directory is not empty", function(done) {
 		var CustomTurret = Turret.extend({
-			finish:function(err){
+			finish: function(err) {
 				expect(err).to.not.be.undefined;
 				done();
 			}
 		});
 		var turret = new CustomTurret({
-			logsilent:true
+			logsilent: true
 		});
 		turret.start();
 	});
@@ -47,7 +67,7 @@ describe("turret", function() {
 
 		var turret = new CustomTurret({
 			dirname: __dirname,
-			logsilent:true
+			logsilent: true
 		});
 
 		turret.start();
@@ -86,7 +106,7 @@ describe("turret", function() {
 
 		var turret = new CustomTurret({
 			dirname: __dirname,
-			logsilent:true
+			logsilent: true
 		});
 
 		turret.start();
@@ -95,8 +115,7 @@ describe("turret", function() {
 	it("schema is passed into tempaltes", function(done) {
 		var Custom = Turret.extend({
 			schema: {
-				prompt: {
-				},
+				prompt: {},
 				template: {
 					foo: "bar"
 				}
@@ -114,9 +133,63 @@ describe("turret", function() {
 		});
 
 		var t = new Custom({
-			logsilent:true
+			logsilent: true
 		});
 		t.start();
+	});
+
+	it("can set cwd", function() {
+		var turret = new Turret({
+			cwd: "foo"
+		});
+		expect(turret.cwd).to.equal("foo");
+	});
+
+	describe("schema template character", function() {
+
+		var tmpReadPath = __dirname + "/.tmp-read";
+		var tmpWritePath = __dirname + "/.tmp-write";
+		var tmpData = "<abc= foo abc>";
+
+		beforeEach(function() {
+			if (fs.existsSync(tmpReadPath)) rmDirRecursive(tmpReadPath);
+			if (fs.existsSync(tmpWritePath)) rmDirRecursive(tmpWritePath);
+			fs.mkdirSync(tmpReadPath);
+			fs.mkdirSync(tmpReadPath + "/template");
+			fs.mkdirSync(tmpWritePath);
+			fs.writeFileSync(tmpReadPath + "/template/foo", tmpData)
+		});
+
+		afterEach(function() {
+			rmDirRecursive(tmpReadPath);
+			rmDirRecursive(tmpWritePath);
+		});
+
+		it("is used as defined", function(done) {
+
+			var Custom = Turret.extend({
+				install:function(callback){
+					callback();
+				}
+			})
+
+			var custom = Custom.create({
+				delimiter: "abc",
+				template: {
+					foo:"bar"
+				}
+			}, tmpReadPath, tmpWritePath);
+
+			custom.on("complete",function(){
+				var result = String(fs.readFileSync(tmpWritePath + "/foo"));
+				expect(result).to.equal("bar");
+				done();
+			});
+
+			custom.start();
+			
+
+		});
 	});
 
 });

@@ -19,10 +19,11 @@ var syncPrompt = require("sync-prompt").prompt;
  */
 var Turret = module.exports = function Turret(options) {
 	this.dirname = options && options.dirname ? options.dirname : __dirname;
+	this.cwd = options && options.cwd ? options.cwd : process.cwd();
 	return this;
 };
 
-Turret.prototype = Object.create(EventEmitter, {
+Turret.prototype = Object.create(EventEmitter.prototype, {
 
 	/**
 	 * Provides functionality for prompt and template creation.
@@ -36,7 +37,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	start: {
 		value: function start() {
-			console.info("Starting...");
+			// console.info("Starting...");
 			async.waterfall([
 				_.bind(this.check, this),
 				_.bind(this.gather, this),
@@ -53,10 +54,10 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	check: {
 		value: function check(callback) {
-			console.info("Checking CWD...");
+			// console.info("Checking CWD...");
 			// @TODO: think about adding a true whitelist of files to check against
 			// run through some different folder scenerios
-			var files = _.filter(fs.readdirSync(process.cwd()), function(file) {
+			var files = _.filter(fs.readdirSync(this.cwd), function(file) {
 				if (file.slice(0, 1) === ".") return false;
 				return true;
 			});
@@ -74,7 +75,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	gather: {
 		value: function gather(callback) {
-			console.info("Gathering information...");
+			// console.info("Gathering information...");
 			if (_.isUndefined(this.schema) || _.isUndefined(this.schema.prompt)) {
 				callback(null, {});
 			} else {
@@ -95,7 +96,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	combine: {
 		value: function combine(result, callback) {
-			console.info("Combining gathered with schema template...");
+			// console.info("Combining gathered with schema template...");
 			if (!_.isUndefined(this.schema) && !_.isUndefined(this.schema.template)) {
 				callback(null, _.extend(result, this.schema.template));
 			} else {
@@ -112,16 +113,17 @@ Turret.prototype = Object.create(EventEmitter, {
 	create: {
 		value: function create(result, callback) {
 
-			console.info("Creating files...");
+			// console.info("Creating files...");
 
-			// @TODOL: apply templating char from schema
+			var delimiter = this.schema.delimiter ? this.schema.delimiter : "?";
+
 			_.templateSettings = {
-				evaluate: /<\?([\s\S]+?)\?>/g,
-				interpolate: /<\?=([\s\S]+?)\?>/g,
-				escape: /<\?-([\s\S]+?)\?>/g
+				evaluate: new RegExp("<\\" + delimiter + "([\\s\\S]+?)\\" + delimiter + ">", "g"),
+				interpolate: new RegExp("<\\" + delimiter + "=([\\s\\S]+?)\\" + delimiter + ">", "g"),
+				escape: new RegExp("<\\" + delimiter + "-([\\s\\S]+?)\\" + delimiter + ">", "g")
 			};
 
-			ncp(this.dirname + "/template", process.cwd(), {
+			ncp(this.dirname + "/template", this.cwd, {
 				transform: function(read, write, file) {
 					// @TODO: if i answered no and I dont need a file dont move it over
 					read.on('readable', function() {
@@ -141,10 +143,12 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	install: {
 		value: function install(callback) {
-			console.info("Running install...");
+			
+			return;
+			// console.info("Running install...");
 
 			var childProc = spawn("npm", ["install"], {
-				cwd: process.cwd(),
+				cwd: this.cwd,
 				stdio: "inherit"
 			});
 
@@ -163,11 +167,7 @@ Turret.prototype = Object.create(EventEmitter, {
 	 */
 	finish: {
 		value: function finish(err) {
-			if (err) {
-				console.error(err);
-			} else {
-				console.info("Finishing up...");
-			}
+			this.emit("complete",err);
 		}
 	}
 });
@@ -176,17 +176,19 @@ Turret.prototype = Object.create(EventEmitter, {
  * Static factory method for creating a Turret instance
  * @param {Object} schema The schema to pass through to prompt commands for the instance
  * @param {String} directory The CWD for the turret instance to use for scaffolding
+ * @param {String} The current working directory OPTIONAL
  */
-Turret.create = function create(schema, dirname) {
+var create = Turret.create = function create(schema, dirname, cwd) {
 
 	// create an turret extention object
-	var ChildTurret = Turret.extend({
+	var ChildTurret = this.extend({
 		schema: schema
 	});
 
 	// return a new instance of the extention turret
 	return new ChildTurret({
-		dirname: dirname
+		dirname: dirname,
+		cwd:cwd
 	});
 };
 
@@ -194,11 +196,13 @@ Turret.create = function create(schema, dirname) {
  * Simple extension functionality
  * @param {Object} props Properties to assign to the entention's prototype
  */
-Turret.extend = function extend(props) {
+var extend = Turret.extend = function extend(props) {
 	var parent = this;
 	var child = function() {
 		parent.apply(this, arguments);
 	};
+	child.extend = extend;
+	child.create = create;
 	var proto = utils.createDescriptors(props);
 	child.prototype = Object.create(parent.prototype, proto);
 	return child;
