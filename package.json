@@ -2,7 +2,7 @@
   "name": "turret",
   "description": "Template scaffolding library.",
   "homepage": "https://github.com/mcgaryes/turret",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "dependencies": {
     "async": "~0.2.9",
     "underscore": "~1.5.2",
